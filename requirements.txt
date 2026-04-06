@@ -4,3 +4,4 @@ tavily-python
 pandas
 python-dotenv
 Streamlit
+openpyxl
