@@ -38,6 +38,8 @@ st.markdown("""
         font-weight: bold;
         transition: 0.3s all;
         width: 100%;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
     
     .stButton>button:hover {
@@ -48,14 +50,15 @@ st.markdown("""
     /* Report Output Styling */
     .report-output {
         background-color: #0a0a0a;
-        padding: 20px;
+        padding: 25px;
         border-radius: 12px;
         border: 1px solid #222;
         line-height: 1.7;
         color: #d1d1d1;
+        font-size: 1.05rem;
     }
     
-    h1, h2, h3 { color: #ffffff !important; }
+    h1, h2, h3 { color: #ffffff !important; letter-spacing: -0.5px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -70,7 +73,7 @@ if not os.path.exists(data_file):
 st.title("Football Intelligence")
 st.write("Strategic Scouting & News Aggregation | 2026 Season")
 
-# --- 4. Subscription Form ---
+# --- 4. Subscription Experience ---
 with st.form("pro_subscription"):
     col1, col2 = st.columns(2)
     
@@ -90,29 +93,45 @@ with st.form("pro_subscription"):
 # --- 5. Core Logic ---
 if submit_btn:
     if email and "@" in email:
-        # Save to Excel
+        # 1. Save or Update User Data in Excel
         current_data = pd.read_excel(data_file, engine='openpyxl')
-        if email not in current_data['Email'].values:
+        
+        # Check if email exists to update or add new
+        if email in current_data['Email'].values:
+            # Update existing user preferences
+            current_data.loc[current_data['Email'] == email, ['Interest', 'Language', 'Preferred_Time']] = [interest, language, preferred_time]
+            updated_data = current_data
+            status_msg = f"System Update: Preferences synchronized for {email}."
+        else:
+            # Add new subscriber
             new_entry = pd.DataFrame([[email, interest, language, preferred_time, datetime.now()]], 
                                    columns=["Email", "Interest", "Language", "Preferred_Time", "Subscription_Date"])
             updated_data = pd.concat([current_data, new_entry], ignore_index=True)
-            updated_data.to_excel(data_file, index=False, engine='openpyxl')
-            st.success(f"Identity Verified: {email} is active.")
+            status_msg = f"Identity Verified: {email} is now active."
         
-        # Run Workflow
-        with st.spinner("Accessing global nodes..."):
-            report = run_agent_workflow(interest, email, interest, language)
-            
-            if report:
-                st.markdown("### Latest Strategic Report")
-                st.markdown(f"<div class='report-output'>{report}</div>", unsafe_allow_html=True)
-                if preferred_time != "Instant Only":
-                    st.info(f"Scheduled updates will follow at: {preferred_time}")
-            else:
-                st.error("Access Denied: Check API credentials in Secrets.")
-    else:
-        st.error("Invalid Email: Verification failed.")
+        # Save changes to file
+        updated_data.to_excel(data_file, index=False, engine='openpyxl')
+        st.success(status_msg)
 
-# --- 6. Footer ---
+        # 2. Conditional Report Generation (ONLY for Instant Only)
+        if preferred_time == "Instant Only":
+            with st.spinner("Accessing global nodes for Instant Report..."):
+                report = run_agent_workflow(interest, email, interest, language)
+                
+                if report:
+                    st.markdown("### Latest Strategic Report")
+                    st.markdown(f"<div class='report-output'>{report}</div>", unsafe_allow_html=True)
+                    st.balloons()
+                else:
+                    st.error("Protocol Failure: Unable to fetch data. Check API configuration.")
+        else:
+            # Just show a scheduled confirmation
+            st.info(f"Report Scheduled: You will receive your tactical intelligence at **{preferred_time}**.")
+            st.warning("Immediate generation skipped based on your delivery preference.")
+            
+    else:
+        st.error("Invalid Email: Identity verification failed.")
+
+# --- 6. Institutional Footer ---
 st.markdown("<br><hr style='border-color: #222;'>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #444; font-size: 0.75rem;'>2026 FOOTBALL INTELLIGENCE SYSTEM | SECURE DATA PIPE</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #444; font-size: 0.75rem;'>2026 FOOTBALL INTELLIGENCE SYSTEM | ENCRYPTED DATA PIPE | NO EXTERNAL ICONS</p>", unsafe_allow_html=True)
