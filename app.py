@@ -1,93 +1,99 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from streamlit_gsheets import GSheetsConnection
-from main import run_agent_workflow
+import gspread
+from google.oauth2.service_account import Credentialsfrom main import run_agent_workflow
 
-# --- 1. Page Configuration & UI Styling ---
+# --- 1. Page Configuration ---
 st.set_page_config(page_title="Football Intelligence Cloud", layout="centered")
 
-# Professional Dark Theme CSS
+# --- 2. Manual Cloud Connection (The Bulletproof Way) ---
+SHEET_ID = "1cpSclVF8-KngIfZjxxokhAV1NLIxQSbDu_EYhZH1PPc"
+
+def get_gspread_client():
+    try:
+        # 1. Get credentials from secrets
+        creds_info = st.secrets["connections"]["gsheets"]
+        
+        # 2. Fix the private key (The most common cause of failure)
+        if "private_key" in creds_info:
+            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+        
+        # 3. Define scopes and authorize
+        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+        creds = Credentials.from_service_account_info(creds_info, scopes=scopes)
+        return gspread.authorize(creds)
+    except Exception as e:
+        st.error(f"Authentication Failed: {str(e)}")
+        return None
+
+# Initialize Client
+client = get_gspread_client()
+
+def get_data():
+    if client:
+        # Open by ID is much safer than URL
+        sheet = client.open_by_key(SHEET_ID).sheet1
+        data = sheet.get_all_records()
+        return pd.DataFrame(data)
+    return pd.DataFrame()
+
+def update_data(df):
+    if client:
+        sheet = client.open_by_key(SHEET_ID).sheet1
+        sheet.clear()
+        # Prepare data including header
+        sheet.update([df.columns.values.tolist()] + df.values.tolist())
+        return True
+    return False
+
+# --- 3. UI & Styles ---
 st.markdown("""
     <style>
-    .stApp { background-color: #050505; }
+    .stApp { background-color: #050505; color: white; }
     .stForm { background: #0f0f0f !important; padding: 30px !important; border-radius: 15px !important; border: 1px solid #1e1e1e !important; }
-    .stButton>button { background: linear-gradient(90deg, #0062ff, #0047ba); color: white; border-radius: 8px; width: 100%; font-weight: bold; }
-    .report-output { background-color: #0a0a0a; padding: 25px; border-radius: 12px; border: 1px solid #222; color: #d1d1d1; line-height: 1.7; }
-    h1, h2, h3 { color: #ffffff !important; }
+    .stButton>button { background: linear-gradient(90deg, #0062ff, #0047ba); color: white; width: 100%; font-weight: bold; }
+    .report-output { background-color: #0a0a0a; padding: 25px; border-radius: 12px; border: 1px solid #222; color: #d1d1d1; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. Cloud Connection (Google Sheets) ---
-# Direct link to your specific spreadsheet
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1cpSclVF8-KngIfZjxxokhAV1NLIxQSbDu_EYhZH1PPc/edit"
-
-# Initialize connection simply using Streamlit Secrets [connections.gsheets]
-try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
-except Exception as e:
-    st.error("Failed to initialize Cloud Connection. Please check your Secrets format.")
-    st.stop()
-
-def get_data():
-    """Fetches the latest subscriber data from the cloud sheet."""
-    # Read data from 'Sheet1' with no caching (ttl=0) to see updates immediately
-    return conn.read(spreadsheet=SHEET_URL, worksheet="Sheet1", ttl=0)
-
-# --- 3. UI Header ---
 st.title("Football Intelligence")
-st.write("Cloud-Synced Strategic Scouting | 2026 Season")
+st.write("Professional Scouting Cloud | 2026")
 
-# --- 4. Subscription Form ---
-with st.form("pro_subscription"):
+# --- 4. Form ---
+with st.form("subscription_form"):
     col1, col2 = st.columns(2)
     with col1:
-        email = st.text_input("Professional Email", placeholder="user@domain.com")
-        interest = st.selectbox("Target Entity", ["Real Madrid", "Premier League", "La Liga", "Egyptian League", "Al Ahly", "Zamalek", "Transfer Market"])
+        email = st.text_input("Email")
+        interest = st.selectbox("Interest", ["Real Madrid", "Al Ahly", "Zamalek", "Premier League"])
     with col2:
-        language = st.selectbox("Intelligence Language", ["English", "Arabic"])
-        preferred_time = st.selectbox("Delivery Schedule", ["Morning (09:00 AM)", "Evening (06:00 PM)", "Late Night (11:00 PM)", "Instant Only"])
+        language = st.selectbox("Language", ["English", "Arabic"])
+        pref_time = st.selectbox("Schedule", ["Morning", "Evening", "Instant Only"])
     
-    submit_btn = st.form_submit_button("SYNC TO CLOUD & RUN")
+    submit = st.form_submit_button("SYNC & RUN")
 
-# --- 5. Core Logic: Cloud Sync & Agent Trigger ---
-if submit_btn:
+# --- 5. Logic ---
+if submit:
     if email and "@" in email:
-        try:
-            # Step A: Fetch current data from Google Sheets
-            df = get_data()
-            df = df.dropna(how="all")
-
-            # Step B: Check if user exists to Update or Append
-            if not df.empty and email in df['Email'].values:
-                df.loc[df['Email'] == email, ['Interest', 'Language', 'Preferred_Time']] = [interest, language, preferred_time]
-                status_msg = f"Cloud Preferences Updated for {email}."
-            else:
-                new_entry = pd.DataFrame([[email, interest, language, preferred_time, datetime.now().strftime("%Y-%m-%d %H:%M:%S")]], 
-                                       columns=["Email", "Interest", "Language", "Preferred_Time", "Subscription_Date"])
-                df = pd.concat([df, new_entry], ignore_index=True)
-                status_msg = f"New Identity Registered in Cloud: {email}."
-            
-            # Step C: Update the Google Sheet with the new/modified data
-            conn.update(spreadsheet=SHEET_URL, worksheet="Sheet1", data=df)
-            st.success(status_msg)
-
-            # Step D: Run Agent Workflow for 'Instant Only' requests
-            if preferred_time == "Instant Only":
-                with st.spinner("Processing Real-time Node Search..."):
+        df = get_data()
+        
+        # Add timestamp
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        if not df.empty and email in df['Email'].values:
+            df.loc[df['Email'] == email, ['Interest', 'Language', 'Preferred_Time']] = [interest, language, pref_time]
+            msg = "Account Updated!"
+        else:
+            new_row = pd.DataFrame([[email, interest, language, pref_time, now]], 
+                                 columns=["Email", "Interest", "Language", "Preferred_Time", "Subscription_Date"])
+            df = pd.concat([df, new_row], ignore_index=True)
+            msg = "New Account Created!"
+        
+        if update_data(df):
+            st.success(msg)
+            if pref_time == "Instant Only":
+                with st.spinner("Analyzing..."):
                     report = run_agent_workflow(interest, email, interest, language)
-                    if report:
-                        st.markdown("### Strategic Report")
-                        st.markdown(f"<div class='report-output'>{report}</div>", unsafe_allow_html=True)
-                        st.balloons()
-            else:
-                st.info(f"Report Scheduled for: {preferred_time}")
-                
-        except Exception as e:
-            st.error("Cloud Error: Ensure the sheet is shared with your Service Account email.")
-            # Optional: st.exception(e) # Uncomment this if you need to debug specific error messages
+                    st.markdown(f"<div class='report-output'>{report}</div>", unsafe_allow_html=True)
     else:
-        st.error("Invalid Email: Verification failed.")
-
-# --- 6. Institutional Footer ---
-st.markdown("<br><hr style='border-color: #222;'><p style='text-align: center; color: #444; font-size: 0.75rem;'>2026 CLOUD INTELLIGENCE SYSTEM | DATA SYNC ACTIVE</p>", unsafe_allow_html=True)
+        st.error("Check your email format")
