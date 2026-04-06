@@ -1,56 +1,67 @@
-# Import the agents
-from agents.researcher import get_football_news
-from agents.writer import write_news_article
-# Import the email tool from the tools folder
+import os
+from datetime import datetime
+from groq import Groq
+from tavily import TavilyClient
+from config import GROQ_API_KEY, TAVILY_API_KEY
 from tools.email_tools import send_news_email
 
-def run_agent_workflow(topic, user_email):
-    """
-    The main coordinator that runs the search, writing, and emailing process.
-    This function is called directly by app.py (Streamlit).
-    """
-    
-    # --- Step 1: Research Phase ---
-    # Fetch data using the researcher agent (Tavily)
-    search_data = get_football_news(topic)
-    
-    # --- Step 2: Data Preparation ---
-    # Combine search results into a context string for the writer
-    # Using 'content' or 'raw_content' to provide more details to the AI
-    detailed_context = ""
-    for res in search_data['results']:
-        title = res.get('title', 'No Title')
-        snippet = res.get('content', '')
-        detailed_context += f"\n- {title}: {snippet}\n"
-    
-    # --- Step 3: Writing Phase ---
-    # Generate the professional Arabic report using the writer agent (Groq)
-    print(f"✍️  Generating report for: {topic}...")
-    final_article = write_news_article(topic, detailed_context)
-    
-    # --- Step 4: Emailing Phase ---
-    # Send the final report to the user's email
-    if user_email:
-        print(f"📧 Sending email to: {user_email}...")
-        subject = f"⚽ تقريرك الرياضي: {topic}"
-        
-        # Add links to the email body for reference
-        links_text = "\n\n🔗 المصادر:\n" + "\n".join([res['url'] for res in search_data['results']])
-        email_body = final_article + links_text
-        
-        # Call the tool we created in tools/email_tools.py
-        success = send_news_email(user_email, subject, email_body)
-        
-        if success:
-            print("✅ Email sent successfully!")
-        else:
-            print("❌ Failed to send email. Check your config/App Password.")
+groq_client = Groq(api_key=GROQ_API_KEY)
+tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
 
-    # Return the article so Streamlit can display it on the screen
-    return final_article
+def get_comprehensive_news(topic, interest):
+    current_date = datetime.now().strftime("%d %B %Y")
+    try:
+        query = f"breaking {topic} {interest} news today {current_date} official"
+        results = tavily_client.search(query=query, max_results=5, days=1)
+        return results['results']
+    except Exception as e:
+        print(f"Tavily Error: {e}")
+        return []
 
-if __name__ == "__main__":
-    # This part allows you to still test the file directly from the terminal
-    test_topic = "آخر أخبار الدوري الإنجليزي"
-    test_email = "your-test-email@example.com" # Change this to your real email to test
-    print(run_agent_workflow(test_topic, test_email))
+def generate_professional_report(topic, data_pool, language):
+    """
+    Synthesizes report in the selected language (English or Arabic).
+    """
+    current_year = datetime.now().year
+    
+    # Prompt adjustments based on language choice
+    prompt = f"""
+    ROLE: Senior Sports Journalist.
+    LANGUAGE: Write EVERYTHING in {language.upper()}. 
+    TARGET: Select the top 4 real football events from {current_year}.
+    
+    STRUCTURE:
+    - [✅ CONFIRMED] or [⚠️ RUMOR] + **Bold Title**
+    - 3 Informative sentences (Action, Context, Impact).
+    - 📢 **Source:** [Website Name]
+    - 🔗 **Link:** [Direct URL]
+    """
+
+    try:
+        completion = groq_client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": f"You are a factual sports bot writing in {language}. Temperature 0.0 for accuracy."},
+                {"role": "user", "content": prompt + f"\n\nDATA:\n{data_pool}"}
+            ],
+            model="llama-3.3-70b-versatile",
+            temperature=0.0
+        )
+        return completion.choices[0].message.content
+    except Exception as e:
+        print(f"Groq Error: {e}")
+        return None
+
+def run_agent_workflow(topic, receiver_email, interest, language="English"):
+    """
+    Added 'language' parameter to support multi-lingual reports.
+    """
+    data = get_comprehensive_news(topic, interest)
+    if not data: return None
+    
+    report = generate_professional_report(topic, data, language)
+    
+    if report:
+        subject = f"Precision Update: {topic} ({language})"
+        send_news_email(receiver_email, subject, report)
+        return report
+    return None
