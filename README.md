@@ -1,29 +1,53 @@
-# ⚽ Elite Football Insights (2026 Edition)
+# ⚽ Football Intelligence Cloud Agent (V1.0)
 
 An advanced AI-powered sports journalism agent that delivers real-time, factual football reports directly to your email. Built for the 2026 season with a focus on zero-hallucination and high-impact news.
 
----
+![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
+![Streamlit](https://img.shields.io/badge/Streamlit-Cloud-red.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-## 🌟 Key Features
-
-- **🎯 Precision Intelligence:** Powered by Groq (Llama 3.3 70B) and Tavily Search to ensure 100% factual data from the 2026 season.
-- **🌍 Multi-Language Support:** Users can choose to receive reports in either **English** or **Arabic**.
-- **📅 Smart Scheduling:**
-    - **Morning Report:** Delivered at 09:00 AM (Daily highlights).
-    - **Evening Report:** Delivered at 09:00 PM (Summary of the day).
-    - **Instant Run:** Generate and view a report immediately via the UI.
-- **🎨 Modern Dashboard:** A sleek, dark-themed Streamlit interface for easy subscription management.
-- **🛡️ Anti-Hallucination Engine:** Strict filtering to remove website ads, generic descriptions, and fake news.
+An AI-powered football scouting agent that automates fan subscriptions and delivers personalized intelligence reports using Large Language Models (LLMs) and Google Sheets integration.
 
 ---
 
-## 🛠️ Tech Stack
-
-- **Frontend:** Streamlit (Custom CSS for Modern UI)
-- **AI Engine:** Groq API (Llama 3.3 70B Model)
-- **Real-time Search:** Tavily API
-- **Automation:** Python `schedule` library
-- **Database:** Excel-based subscriber management (Pandas)
-- **Communication:** SMTP / Gmail for automated email delivery
+## 🚀 Live Demo
+Experience the agent in action here:  
+🔗 **[Football Intelligence App](https://YOUR-APP-LINK.streamlit.app)** *(استبدل هذا باللينك بتاعك)*
 
 ---
+
+## ✨ Key Features
+* **Smart Subscription System:** Seamlessly syncs user data (Team interest, Language, Schedule) to a Google Sheets database.
+* **AI Scouting Reports:** Generates instant football analysis reports based on specific user interests using an autonomous agent workflow.
+* **Secure Cloud Auth:** Implemented a robust **Base64-encoded PEM encryption** logic to handle Google Cloud Service Accounts securely on Streamlit Cloud.
+* **Multi-language Support:** Delivers insights in both Arabic and English.
+* **Clean UI:** Professional dark-themed dashboard built with Streamlit.
+
+---
+
+## 🛠️ Technical Stack
+* **Frontend/App Framework:** [Streamlit](https://streamlit.io/)
+* **Database Interface:** [Google Sheets API](https://developers.google.com/sheets/api) via `gspread`
+* **Authentication:** Google Service Accounts (OAuth2)
+* **Data Handling:** Pandas
+* **AI Core:** LangChain / AI Agent Workflow (main.py)
+
+---
+
+## 📂 Project Structure
+├── agents/
+│   ├── researcher.py       # AI Scout: Searches for the latest football news & stats.
+│   └── writer.py           # AI Journalist: Crafts engaging reports in multiple languages.
+├── tools/
+│   ├── search_tools.py     # Real-time web search integration (Serper/Google).
+│   └── email_tools.py      # Automated delivery system for sending reports to users.
+├── data/
+│   └── processed/          # Storage for generated scouting reports & logs.
+├── .streamlit/
+│   ├── config.toml         # UI Branding (Colors, fonts, and dark mode settings).
+│   └── secrets.toml        # Secure storage for API Keys & GSheets Base64 credentials.
+├── app.py                  # Main UI: Handles user registration and dashboard display.
+├── main.py                 # Core Orchestrator: Connects Agents with Tools to start the task.
+├── config.py               # Global Settings: Model parameters (GPT-4) and API endpoints.
+├── scheduler.py            # Timing Logic: Manages daily/weekly report delivery schedules.
+└── requirements.txt        # List of all Python libraries needed to run the project.
