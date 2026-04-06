@@ -34,21 +34,24 @@ Experience the agent in action here:
 
 ---
 
-## 📂 Project Structure
-.
-├── agents/
-│   ├── researcher.py       # AI Scout: Searches for the latest football news & stats.
-│   └── writer.py           # AI Journalist: Crafts engaging reports in multiple languages.
-├── tools/
-│   ├── search_tools.py     # Real-time web search integration (Serper/Google).
-│   └── email_tools.py      # Automated delivery system for sending reports to users.
-├── data/
-│   └── processed/          # Storage for generated scouting reports & logs.
-├── .streamlit/
-│   ├── config.toml         # UI Branding (Colors, fonts, and dark mode settings).
-│   └── secrets.toml        # Secure storage for API Keys & GSheets Base64 credentials.
-├── app.py                  # Main UI: Handles user registration and dashboard display.
-├── main.py                 # Core Orchestrator: Connects Agents with Tools to start the task.
-├── config.py               # Global Settings: Model parameters (GPT-4) and API endpoints.
-├── scheduler.py            # Timing Logic: Manages daily/weekly report delivery schedules.
-└── requirements.txt        # List of all Python libraries needed to run the project.
+📂 Project Structure
+• agents/
+   - researcher.py (AI Scout: Searches for latest football news & stats)
+   - writer.py (AI Journalist: Crafts engaging reports in multiple languages)
+
+• tools/
+   - search_tools.py (Real-time web search integration via Serper/Google)
+   - email_tools.py (Automated delivery system for sending reports)
+
+• data/
+   - processed/ (Storage for generated scouting reports & logs)
+
+• .streamlit/
+   - config.toml (UI Branding: Colors, fonts, and dark mode settings)
+   - secrets.toml (Secure storage for API Keys & GSheets Base64)
+
+• app.py (Main UI: Handles user registration and dashboard display)
+• main.py (Core Orchestrator: Connects Agents with Tools)
+• config.py (Global Settings: Model parameters and API endpoints)
+• scheduler.py (Timing Logic: Manages automated delivery schedules)
+• requirements.txt (List of all Python libraries needed for the project)
