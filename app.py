@@ -4,10 +4,10 @@ import os
 from datetime import datetime
 from main import run_agent_workflow
 
-# --- 1. Premium Page Configuration ---
+# --- 1. Page Configuration & Professional Styling ---
 st.set_page_config(page_title="Football Intelligence Pro", layout="centered")
 
-# Custom CSS for high-end "Hand-Crafted" Look
+# Custom CSS for a Clean, Premium Dark Interface
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
@@ -20,42 +20,42 @@ st.markdown("""
         background-color: #050505;
     }
     
-    .main-card {
-        background: linear-gradient(145deg, #111111, #0a0a0a);
-        padding: 40px;
-        border-radius: 20px;
-        border: 1px solid #222;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        margin-bottom: 25px;
+    /* Premium Form Container */
+    .stForm {
+        background: #0f0f0f !important;
+        padding: 30px !important;
+        border-radius: 15px !important;
+        border: 1px solid #1e1e1e !important;
     }
     
+    /* Button Styling */
     .stButton>button {
         background: linear-gradient(90deg, #0062ff, #0047ba);
         color: white;
         border: none;
-        padding: 15px 30px;
-        border-radius: 12px;
+        padding: 10px 20px;
+        border-radius: 8px;
         font-weight: bold;
         transition: 0.3s all;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+        width: 100%;
     }
     
     .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0,98,255,0.4);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,98,255,0.3);
     }
     
+    /* Report Output Styling */
     .report-output {
-        background-color: #0f0f0f;
-        padding: 25px;
-        border-radius: 15px;
-        border-left: 4px solid #0062ff;
-        line-height: 1.6;
-        color: #e0e0e0;
+        background-color: #0a0a0a;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid #222;
+        line-height: 1.7;
+        color: #d1d1d1;
     }
     
-    h1, h2, h3 { color: #ffffff !important; letter-spacing: -1px; }
+    h1, h2, h3 { color: #ffffff !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -67,64 +67,52 @@ if not os.path.exists(data_file):
     df.to_excel(data_file, index=False, engine='openpyxl')
 
 # --- 3. UI Header ---
-st.markdown("<div style='text-align: center; padding: 20px 0;'>", unsafe_allow_html=True)
 st.title("Football Intelligence")
-st.write("Advanced Global Scouting & News Aggregation System")
-st.markdown("</div>", unsafe_allow_html=True)
+st.write("Strategic Scouting & News Aggregation | 2026 Season")
 
-# --- 4. Subscription Experience ---
-# We removed the extra markdown div that was causing the empty black box
-with st.container():
-    # Applying the card style directly inside the form using a single div
-    st.markdown("<div class='main-card'>", unsafe_allow_html=True)
+# --- 4. Subscription Form ---
+with st.form("pro_subscription"):
+    col1, col2 = st.columns(2)
     
-    with st.form("pro_subscription", clear_on_submit=False):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            email = st.text_input("Professional Email", placeholder="name@company.com")
-            interest = st.selectbox("Target Entity", 
-                                  ["Real Madrid", "Premier League", "La Liga", "Egyptian League", "Al Ahly", "Zamalek", "Transfer Market"])
-        
-        with col2:
-            language = st.selectbox("Intelligence Language", ["English", "Arabic"])
-            preferred_time = st.selectbox("Report Delivery Schedule", 
-                                        ["Morning (09:00 AM)", "Evening (06:00 PM)", "Late Night (11:00 PM)", "Instant Only"])
-        
-        st.markdown("<div style='padding: 10px 0;'></div>", unsafe_allow_html=True) # Minimal spacing
-        submit_btn = st.form_submit_button("Initialize Data Sync")
+    with col1:
+        email = st.text_input("Professional Email", placeholder="user@domain.com")
+        interest = st.selectbox("Intelligence Target", 
+                              ["Real Madrid", "Premier League", "La Liga", "Egyptian League", "Al Ahly", "Zamalek", "Transfer Market"])
     
-    st.markdown("</div>", unsafe_allow_html=True)
+    with col2:
+        language = st.selectbox("Report Language", ["English", "Arabic"])
+        preferred_time = st.selectbox("Delivery Schedule", 
+                                    ["Morning (09:00 AM)", "Evening (06:00 PM)", "Late Night (11:00 PM)", "Instant Only"])
+    
+    st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+    submit_btn = st.form_submit_button("SYNC DATA & RUN")
 
-# --- 5. Logic Execution ---
+# --- 5. Core Logic ---
 if submit_btn:
     if email and "@" in email:
-        # Data Persistence
+        # Save to Excel
         current_data = pd.read_excel(data_file, engine='openpyxl')
-        
         if email not in current_data['Email'].values:
             new_entry = pd.DataFrame([[email, interest, language, preferred_time, datetime.now()]], 
                                    columns=["Email", "Interest", "Language", "Preferred_Time", "Subscription_Date"])
             updated_data = pd.concat([current_data, new_entry], ignore_index=True)
             updated_data.to_excel(data_file, index=False, engine='openpyxl')
-            st.success(f"System Synchronized: {email} is now active.")
+            st.success(f"Identity Verified: {email} is active.")
         
-        # Immediate Report Generation (Only if 'Instant Only' OR requested now)
-        # Note: In a real system, the scheduler (GitHub Actions) would handle the other times.
-        with st.spinner("Processing Real-Time Intelligence..."):
+        # Run Workflow
+        with st.spinner("Accessing global nodes..."):
             report = run_agent_workflow(interest, email, interest, language)
             
             if report:
-                st.markdown("### Strategic Intelligence Report")
+                st.markdown("### Latest Strategic Report")
                 st.markdown(f"<div class='report-output'>{report}</div>", unsafe_allow_html=True)
-                
                 if preferred_time != "Instant Only":
-                    st.info(f"Future reports will be dispatched during your selected window: {preferred_time}")
+                    st.info(f"Scheduled updates will follow at: {preferred_time}")
             else:
-                st.error("Protocol Failure: Unable to fetch data. Check API configuration.")
+                st.error("Access Denied: Check API credentials in Secrets.")
     else:
-        st.error("Identity Verification Failed: Please provide a valid email.")
+        st.error("Invalid Email: Verification failed.")
 
-# --- 6. Institutional Footer ---
+# --- 6. Footer ---
 st.markdown("<br><hr style='border-color: #222;'>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #555; font-size: 0.8rem;'>OFFICIAL INTELLIGENCE SYSTEM | 2026 SEASON DATA | SECURE ENCRYPTION ENABLED</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #444; font-size: 0.75rem;'>2026 FOOTBALL INTELLIGENCE SYSTEM | SECURE DATA PIPE</p>", unsafe_allow_html=True)
