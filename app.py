@@ -73,14 +73,16 @@ st.write("Advanced Global Scouting & News Aggregation System")
 st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 4. Subscription Experience ---
+# We removed the extra markdown div that was causing the empty black box
 with st.container():
+    # Applying the card style directly inside the form using a single div
     st.markdown("<div class='main-card'>", unsafe_allow_html=True)
     
-    with st.form("pro_subscription"):
+    with st.form("pro_subscription", clear_on_submit=False):
         col1, col2 = st.columns(2)
         
         with col1:
-            email = st.text_input("Professional Email")
+            email = st.text_input("Professional Email", placeholder="name@company.com")
             interest = st.selectbox("Target Entity", 
                                   ["Real Madrid", "Premier League", "La Liga", "Egyptian League", "Al Ahly", "Zamalek", "Transfer Market"])
         
@@ -89,7 +91,7 @@ with st.container():
             preferred_time = st.selectbox("Report Delivery Schedule", 
                                         ["Morning (09:00 AM)", "Evening (06:00 PM)", "Late Night (11:00 PM)", "Instant Only"])
         
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<div style='padding: 10px 0;'></div>", unsafe_allow_html=True) # Minimal spacing
         submit_btn = st.form_submit_button("Initialize Data Sync")
     
     st.markdown("</div>", unsafe_allow_html=True)
