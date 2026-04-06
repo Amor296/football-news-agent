@@ -35,6 +35,7 @@ Experience the agent in action here:
 ---
 
 ## 📂 Project Structure
+.
 ├── agents/
 │   ├── researcher.py       # AI Scout: Searches for the latest football news & stats.
 │   └── writer.py           # AI Journalist: Crafts engaging reports in multiple languages.
