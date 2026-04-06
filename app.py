@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import gspread
-from google.oauth2.service_account import Credentialsfrom main import run_agent_workflow
+from google.oauth2.service_account import Credentials
+from main import run_agent_workflow
 
 # --- 1. Page Configuration ---
 st.set_page_config(page_title="Football Intelligence Cloud", layout="centered")
