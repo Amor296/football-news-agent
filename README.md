@@ -34,24 +34,20 @@ Experience the agent in action here:
 
 ---
 
-📂 Project Structure
-• agents/
-   - researcher.py (AI Scout: Searches for latest football news & stats)
-   - writer.py (AI Journalist: Crafts engaging reports in multiple languages)
+### 🏗️ File Architecture
 
-• tools/
-   - search_tools.py (Real-time web search integration via Serper/Google)
-   - email_tools.py (Automated delivery system for sending reports)
-
-• data/
-   - processed/ (Storage for generated scouting reports & logs)
-
-• .streamlit/
-   - config.toml (UI Branding: Colors, fonts, and dark mode settings)
-   - secrets.toml (Secure storage for API Keys & GSheets Base64)
-
-• app.py (Main UI: Handles user registration and dashboard display)
-• main.py (Core Orchestrator: Connects Agents with Tools)
-• config.py (Global Settings: Model parameters and API endpoints)
-• scheduler.py (Timing Logic: Manages automated delivery schedules)
-• requirements.txt (List of all Python libraries needed for the project)
+```text
+├── agents/
+│   ├── football_researcher.py  # AI Agent for deep web scouting
+│   └── football_writer.py      # AI Agent for sports journalism
+├── tools/
+│   └── search_tools.py         # Integration with Search APIs
+│   └── email_tools.py      # Automated delivery system for sending reports.
+├── .streamlit/
+│   ├── config.toml             # UI Theme configuration
+│   └── secrets.toml            # Encrypted API keys & GSheets Base64
+├── app.py                      # Streamlit Frontend & User Interface
+├── main.py                     # CrewAI Orchestrator (Workflow start)
+├── config.py                   # Global constants & AI parameters
+├── scheduler.py                # Automated delivery logic
+└── requirements.txt            # Project dependencies
