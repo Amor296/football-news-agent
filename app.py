@@ -7,7 +7,7 @@ from main import run_agent_workflow
 # --- 1. Page Configuration & UI Styling ---
 st.set_page_config(page_title="Football Intelligence Cloud", layout="centered")
 
-# Custom CSS for a professional dark theme
+# Professional Dark Theme CSS
 st.markdown("""
     <style>
     .stApp { background-color: #050505; }
@@ -19,41 +19,26 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 2. Cloud Connection (Google Sheets) ---
+# Direct link to your specific spreadsheet
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1cpSclVF8-KngIfZjxxokhAV1NLIxQSbDu_EYhZH1PPc/edit"
 
-def get_fixed_secrets():
-    """
-    Retrieves and fixes the Google Service Account private key format
-    to prevent 'Unable to load PEM file' errors in cloud environments.
-    """
-    try:
-        # Load credentials from Streamlit Secrets
-        creds = dict(st.secrets["connections"]["gsheets"])
-        if "private_key" in creds:
-            # Replace escaped newlines with actual newline characters
-            creds["private_key"] = creds["private_key"].replace("\\n", "\n")
-        return creds
-    except Exception as e:
-        st.error("Secrets Configuration Missing! Please check Streamlit Cloud Settings.")
-        return None
-
-# Initialize connection with fixed credentials
-fixed_creds = get_fixed_secrets()
-
-if fixed_creds:
-    conn = st.connection("gsheets", type=GSheetsConnection, **fixed_creds)
-else:
-    st.stop() # Halt execution if secrets are unavailable
+# Initialize connection simply using Streamlit Secrets [connections.gsheets]
+try:
+    conn = st.connection("gsheets", type=GSheetsConnection)
+except Exception as e:
+    st.error("Failed to initialize Cloud Connection. Please check your Secrets format.")
+    st.stop()
 
 def get_data():
-    """Fetches the latest data from the specified Google Sheet."""
+    """Fetches the latest subscriber data from the cloud sheet."""
+    # Read data from 'Sheet1' with no caching (ttl=0) to see updates immediately
     return conn.read(spreadsheet=SHEET_URL, worksheet="Sheet1", ttl=0)
 
 # --- 3. UI Header ---
 st.title("Football Intelligence")
 st.write("Cloud-Synced Strategic Scouting | 2026 Season")
 
-# --- 4. User Subscription Form ---
+# --- 4. Subscription Form ---
 with st.form("pro_subscription"):
     col1, col2 = st.columns(2)
     with col1:
@@ -65,15 +50,15 @@ with st.form("pro_subscription"):
     
     submit_btn = st.form_submit_button("SYNC TO CLOUD & RUN")
 
-# --- 5. Core Logic: Data Sync & Agent Execution ---
+# --- 5. Core Logic: Cloud Sync & Agent Trigger ---
 if submit_btn:
     if email and "@" in email:
         try:
-            # Step A: Fetch existing data from the Cloud
+            # Step A: Fetch current data from Google Sheets
             df = get_data()
             df = df.dropna(how="all")
 
-            # Step B: Logic to either Update existing user or Append new record
+            # Step B: Check if user exists to Update or Append
             if not df.empty and email in df['Email'].values:
                 df.loc[df['Email'] == email, ['Interest', 'Language', 'Preferred_Time']] = [interest, language, preferred_time]
                 status_msg = f"Cloud Preferences Updated for {email}."
@@ -81,13 +66,13 @@ if submit_btn:
                 new_entry = pd.DataFrame([[email, interest, language, preferred_time, datetime.now().strftime("%Y-%m-%d %H:%M:%S")]], 
                                        columns=["Email", "Interest", "Language", "Preferred_Time", "Subscription_Date"])
                 df = pd.concat([df, new_entry], ignore_index=True)
-                status_msg = f"New Identity Registered: {email}."
+                status_msg = f"New Identity Registered in Cloud: {email}."
             
-            # Step C: Push the updated DataFrame back to Google Sheets
+            # Step C: Update the Google Sheet with the new/modified data
             conn.update(spreadsheet=SHEET_URL, worksheet="Sheet1", data=df)
             st.success(status_msg)
 
-            # Step D: Trigger AI Agent Workflow if 'Instant Only' is selected
+            # Step D: Run Agent Workflow for 'Instant Only' requests
             if preferred_time == "Instant Only":
                 with st.spinner("Processing Real-time Node Search..."):
                     report = run_agent_workflow(interest, email, interest, language)
@@ -99,8 +84,8 @@ if submit_btn:
                 st.info(f"Report Scheduled for: {preferred_time}")
                 
         except Exception as e:
-            st.error("Critical Cloud Error. Check your connection or sheet permissions.")
-            st.exception(e) 
+            st.error("Cloud Error: Ensure the sheet is shared with your Service Account email.")
+            # Optional: st.exception(e) # Uncomment this if you need to debug specific error messages
     else:
         st.error("Invalid Email: Verification failed.")
 
