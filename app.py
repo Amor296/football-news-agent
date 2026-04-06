@@ -4,6 +4,7 @@ from datetime import datetime
 import gspread
 from google.oauth2.service_account import Credentials
 from main import run_agent_workflow
+import base64
 
 # --- 1. Page Configuration ---
 st.set_page_config(page_title="Football Intelligence Cloud", layout="centered")
@@ -11,16 +12,23 @@ st.set_page_config(page_title="Football Intelligence Cloud", layout="centered")
 # --- 2. Manual Cloud Connection (The Bulletproof Way) ---
 SHEET_ID = "1cpSclVF8-KngIfZjxxokhAV1NLIxQSbDu_EYhZH1PPc"
 
+
 def get_gspread_client():
     try:
-        # 1. Take a COPY of the secrets to allow modification
+        # 1. Get credentials from secrets
         creds_info = dict(st.secrets["connections"]["gsheets"])
         
-        # 2. Fix the private key format in the copy
-        if "private_key" in creds_info:
-            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+        # 2. Key Handling (The Bulletproof way)
+        raw_key = creds_info["private_key"]
         
-        # 3. Define scopes and authorize using the modified dictionary
+        # If the key doesn't start with -----, it means it's Base64 encoded
+        if not raw_key.startswith("-----"):
+            decoded_key = base64.b64decode(raw_key).decode("utf-8")
+            creds_info["private_key"] = decoded_key
+        else:
+            # Normal fix for \n
+            creds_info["private_key"] = raw_key.replace("\\n", "\n")
+        
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
         creds = Credentials.from_service_account_info(creds_info, scopes=scopes)
         return gspread.authorize(creds)
