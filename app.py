@@ -13,14 +13,14 @@ SHEET_ID = "1cpSclVF8-KngIfZjxxokhAV1NLIxQSbDu_EYhZH1PPc"
 
 def get_gspread_client():
     try:
-        # 1. Get credentials from secrets
-        creds_info = st.secrets["connections"]["gsheets"]
+        # 1. Take a COPY of the secrets to allow modification
+        creds_info = dict(st.secrets["connections"]["gsheets"])
         
-        # 2. Fix the private key (The most common cause of failure)
+        # 2. Fix the private key format in the copy
         if "private_key" in creds_info:
             creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
         
-        # 3. Define scopes and authorize
+        # 3. Define scopes and authorize using the modified dictionary
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
         creds = Credentials.from_service_account_info(creds_info, scopes=scopes)
         return gspread.authorize(creds)
