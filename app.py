@@ -3,76 +3,74 @@ import pandas as pd
 import os
 from main import run_agent_workflow
 
-# Page Config
-st.set_page_config(page_title="Elite Football Insights", page_icon="⚽", layout="wide")
+# --- 1. Page Configuration & UI Styling ---
+st.set_page_config(page_title="2026 AI Football Agent", page_icon="⚽", layout="centered")
 
-# Custom CSS for Dark Sports Theme
+# Custom CSS for a professional Dark Mode look
 st.markdown("""
     <style>
     .main { background-color: #0e1117; color: white; }
-    .stButton>button { width: 100%; border-radius: 8px; height: 3.5em; background-color: #1f77b4; color: white; font-weight: bold; border: none; }
-    .report-box { background-color: #1e1e26; padding: 25px; border-radius: 12px; border-left: 6px solid #1f77b4; margin-top: 20px; color: #e0e0e0; }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; }
+    .report-box { padding: 20px; border: 1px solid #30363d; border-radius: 10px; background-color: #161b22; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("Elite Football Insights")
-st.markdown("### Professional AI Sports Analyst at your service")
+st.title("⚽ Elite Football Insights (2026)")
+st.subheader("Your AI-Powered Daily Football Intelligence")
 
-# Organizing UI in Columns
-col1, col2 = st.columns([1, 1], gap="large")
+# --- 2. Subscriber Data Management ---
+data_file = "data/subscribers.xlsx"
 
-with col1:
-    st.markdown("#### 👤 User Profile")
-    user_email = st.text_input("Your Email Address")
-    topic = st.text_input("Target Topic (Team/Player)")
+# Ensure data directory and excel file exist
+if not os.path.exists("data"):
+    os.makedirs("data")
+
+if not os.path.exists(data_file):
+    # Initialize an empty DataFrame if file doesn't exist
+    df = pd.DataFrame(columns=["Email", "Interest", "Language"])
+    df.to_excel(data_file, index=False, engine='openpyxl')
+
+# --- 3. User Interface (Sidebar & Form) ---
+with st.form("subscription_form"):
+    st.write("### 📧 Subscribe to Daily Reports")
+    email = st.text_input("Enter your Email:")
+    interest = st.selectbox("Favorite Team/League:", ["Real Madrid", "Premier League", "Egyptian League", "Al Ahly", "Zamalek", "Transfers"])
+    language = st.radio("Report Language:", ["Arabic", "English"], horizontal=True)
     
-    # NEW: Language Selector
-    report_lang = st.selectbox("Report Language", ["English", "Arabic"])
+    submit_button = st.form_submit_button("Subscribe & Get Instant Report")
 
-with col2:
-    st.markdown("#### Preferences")
-    interest = st.selectbox("Intelligence Type", ["General News", "Transfer Market", "Match Analysis"])
-    delivery_pref = st.radio("Delivery Schedule:", [
-        "Morning Report (09:00 AM)", 
-        "Twice Daily (AM/PM)",
-        "Instant Report (Run Now)"
-    ])
-
-st.divider()
-
-if st.button("Activate Intelligence"):
-    if user_email and topic:
-        with st.spinner(f"Processing {report_lang} Intelligence for {topic}..."):
-            # 1. Save to Excel (Including Language)
-            data_dir = "data"
-            if not os.path.exists(data_dir): os.makedirs(data_dir)
-            data_file = os.path.join(data_dir, "subscribers.xlsx")
+# --- 4. Logic Processing on Submit ---
+if submit_button:
+    if email and "@" in email:
+        # Load existing subscriber data
+        current_data = pd.read_excel(data_file, engine='openpyxl')
+        
+        # Check if user is already in the system
+        if email not in current_data['Email'].values:
+            new_entry = pd.DataFrame([[email, interest, language]], columns=["Email", "Interest", "Language"])
+            updated_data = pd.concat([current_data, new_entry], ignore_index=True)
             
-            new_data = pd.DataFrame([{
-                "Email": user_email, 
-                "Topic": topic, 
-                "Language": report_lang, # Saved for scheduler
-                "Interest": interest, 
-                "Schedule": delivery_pref, 
-                "Status": "Active"
-            }])
-            
-            if not os.path.isfile(data_file):
-                new_data.to_excel(data_file, index=False)
-            else:
-                df = pd.read_excel(data_file)
-                pd.concat([df, new_data]).drop_duplicates(subset=['Email'], keep='last').to_excel(data_file, index=False)
+            # CRITICAL: Using 'openpyxl' engine for cloud deployment compatibility
+            updated_data.to_excel(data_file, index=False, engine='openpyxl')
+            st.success(f"Successfully subscribed: {email}")
+        else:
+            st.info("You are already subscribed! Generating your instant report...")
 
-            # 2. Immediate Run Logic
-            if "Instant" in delivery_pref:
-                # We pass 'report_lang' to the workflow
-                report = run_agent_workflow(topic, user_email, interest, report_lang)
-                if report:
-                    st.success(f"Success! {report_lang} report generated.")
-                    st.markdown(f'<div class="report-box">{report}</div>', unsafe_allow_html=True)
-                else:
-                    st.error("No verified data found for today.")
+        # Trigger AI Workflow immediately for the user
+        with st.spinner("🤖 AI Agent is searching for 2026 football news..."):
+            # run_agent_workflow returns the generated report string
+            report = run_agent_workflow(interest, email, interest, language)
+            
+            if report:
+                st.markdown("### 📄 Latest Report Preview:")
+                # Display the AI report inside a styled div
+                st.markdown(f"<div class='report-box'>{report}</div>", unsafe_allow_html=True)
+                st.balloons()
             else:
-                st.success(f"Subscription Confirmed! Your {report_lang} reports will start at the scheduled time.")
+                st.error("Could not generate report. Please verify your API Keys in Streamlit Secrets.")
     else:
-        st.warning("Please provide both email and a topic.")
+        st.warning("Please enter a valid email address.")
+
+# --- 5. Footer ---
+st.markdown("---")
+st.caption("Powered by Groq Llama 3.3 & Tavily Search | 2026 Season")
