@@ -12,7 +12,7 @@ An AI-powered football scouting agent that automates fan subscriptions and deliv
 
 ## 🚀 Live Demo
 Experience the agent in action here:  
-🔗 **[Football Intelligence App](https://YOUR-APP-LINK.streamlit.app)** *(استبدل هذا باللينك بتاعك)*
+🔗 **[Football Intelligence App]((https://midan-football-news.streamlit.app/))
 
 ---
 
