@@ -4,9 +4,10 @@ from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
 from main import run_agent_workflow
 
-# --- 1. Page Configuration & UI ---
+# --- 1. Page Configuration & UI Styling ---
 st.set_page_config(page_title="Football Intelligence Cloud", layout="centered")
 
+# Custom CSS for a professional dark theme
 st.markdown("""
     <style>
     .stApp { background-color: #050505; }
@@ -18,20 +19,41 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 2. Cloud Connection (Google Sheets) ---
-# رابط الشيت بتاعك مباشرة
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1cpSclVF8-KngIfZjxxokhAV1NLIxQSbDu_EYhZH1PPc/edit#gid=0"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1cpSclVF8-KngIfZjxxokhAV1NLIxQSbDu_EYhZH1PPc/edit"
 
-conn = st.connection("gsheets", type=GSheetsConnection)
+def get_fixed_secrets():
+    """
+    Retrieves and fixes the Google Service Account private key format
+    to prevent 'Unable to load PEM file' errors in cloud environments.
+    """
+    try:
+        # Load credentials from Streamlit Secrets
+        creds = dict(st.secrets["connections"]["gsheets"])
+        if "private_key" in creds:
+            # Replace escaped newlines with actual newline characters
+            creds["private_key"] = creds["private_key"].replace("\\n", "\n")
+        return creds
+    except Exception as e:
+        st.error("Secrets Configuration Missing! Please check Streamlit Cloud Settings.")
+        return None
+
+# Initialize connection with fixed credentials
+fixed_creds = get_fixed_secrets()
+
+if fixed_creds:
+    conn = st.connection("gsheets", type=GSheetsConnection, **fixed_creds)
+else:
+    st.stop() # Halt execution if secrets are unavailable
 
 def get_data():
-    # بنمرر الرابط هنا مباشرة عشان نتفادى خطأ "Spreadsheet must be specified"
+    """Fetches the latest data from the specified Google Sheet."""
     return conn.read(spreadsheet=SHEET_URL, worksheet="Sheet1", ttl=0)
 
 # --- 3. UI Header ---
 st.title("Football Intelligence")
 st.write("Cloud-Synced Strategic Scouting | 2026 Season")
 
-# --- 4. Subscription Form ---
+# --- 4. User Subscription Form ---
 with st.form("pro_subscription"):
     col1, col2 = st.columns(2)
     with col1:
@@ -43,14 +65,15 @@ with st.form("pro_subscription"):
     
     submit_btn = st.form_submit_button("SYNC TO CLOUD & RUN")
 
-# --- 5. Core Logic (GSheets Sync) ---
+# --- 5. Core Logic: Data Sync & Agent Execution ---
 if submit_btn:
     if email and "@" in email:
         try:
-            # Fetch data using the direct URL
+            # Step A: Fetch existing data from the Cloud
             df = get_data()
             df = df.dropna(how="all")
 
+            # Step B: Logic to either Update existing user or Append new record
             if not df.empty and email in df['Email'].values:
                 df.loc[df['Email'] == email, ['Interest', 'Language', 'Preferred_Time']] = [interest, language, preferred_time]
                 status_msg = f"Cloud Preferences Updated for {email}."
@@ -60,10 +83,11 @@ if submit_btn:
                 df = pd.concat([df, new_entry], ignore_index=True)
                 status_msg = f"New Identity Registered: {email}."
             
-            # التحديث باستخدام الرابط المباشر أيضاً
+            # Step C: Push the updated DataFrame back to Google Sheets
             conn.update(spreadsheet=SHEET_URL, worksheet="Sheet1", data=df)
             st.success(status_msg)
 
+            # Step D: Trigger AI Agent Workflow if 'Instant Only' is selected
             if preferred_time == "Instant Only":
                 with st.spinner("Processing Real-time Node Search..."):
                     report = run_agent_workflow(interest, email, interest, language)
@@ -75,9 +99,10 @@ if submit_btn:
                 st.info(f"Report Scheduled for: {preferred_time}")
                 
         except Exception as e:
-            st.error(f"Cloud Connection Failed: Check if the sheet is shared with the Service Account.")
-            st.exception(e) # هيظهرلك الخطأ بالتفصيل عشان نعرف لو فيه حاجة تانية
+            st.error("Critical Cloud Error. Check your connection or sheet permissions.")
+            st.exception(e) 
     else:
         st.error("Invalid Email: Verification failed.")
 
-st.markdown("<br><hr style='border-color: #222;'><p style='text-align: center; color: #444; font-size: 0.75rem;'>2026 CLOUD INTELLIGENCE SYSTEM</p>", unsafe_allow_html=True)
+# --- 6. Institutional Footer ---
+st.markdown("<br><hr style='border-color: #222;'><p style='text-align: center; color: #444; font-size: 0.75rem;'>2026 CLOUD INTELLIGENCE SYSTEM | DATA SYNC ACTIVE</p>", unsafe_allow_html=True)

@@ -7,3 +7,4 @@ Streamlit
 openpyxl
 st-gsheets-connection
 gspread
+google-auth
