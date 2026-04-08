@@ -1,117 +1,107 @@
-import streamlit as st
-import pandas as pd
+import os
+import threading
+import time
+import schedule  # Ensure 'schedule' is added to your requirements.txt
 from datetime import datetime
-import gspread
-from google.oauth2.service_account import Credentials
-import base64
-from main import run_agent_workflow
+from groq import Groq
+from tavily import TavilyClient
+from config import GROQ_API_KEY, TAVILY_API_KEY
+from tools.email_tools import send_news_email
 
-# --- 1. Page Configuration ---
-st.set_page_config(page_title="Football Intelligence Cloud", layout="centered")
+# Initialize API clients
+groq_client = Groq(api_key=GROQ_API_KEY)
+tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
 
-# --- 2. Secure Cloud Connection Logic ---
-SHEET_ID = "1cpSclVF8-KngIfZjxxokhAV1NLIxQSbDu_EYhZH1PPc"
-
-def get_gspread_client():
+def get_comprehensive_news(topic, interest):
+    """
+    Fetches real-time news using Tavily Search API.
+    """
+    current_date = datetime.now().strftime("%d %B %Y")
     try:
-        # Step 1: Copy secrets to a dictionary to allow modification
-        creds_info = dict(st.secrets["connections"]["gsheets"])
-        
-        # Step 2: Handle Private Key (Support both Base64 and Normal text)
-        raw_key = creds_info["private_key"]
-        
-        if not raw_key.startswith("-----"):
-            # If key is Base64 encoded, decode it back to PEM format
-            decoded_key = base64.b64decode(raw_key).decode("utf-8")
-            creds_info["private_key"] = decoded_key
-        else:
-            # If key is normal text, ensure newlines are handled correctly
-            creds_info["private_key"] = raw_key.replace("\\n", "\n")
-        
-        # Step 3: Define scopes and authenticate
-        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-        creds = Credentials.from_service_account_info(creds_info, scopes=scopes)
-        return gspread.authorize(creds)
-        
+        query = f"breaking {topic} {interest} news today {current_date} official"
+        results = tavily_client.search(query=query, max_results=5, days=1)
+        return results['results']
     except Exception as e:
-        st.error(f"Authentication Failed: {str(e)}")
+        print(f"Tavily Error: {e}")
+        return []
+
+def generate_professional_report(topic, data_pool, language):
+    """
+    Synthesizes a journalistic report in the selected language using Groq Llama-3.
+    """
+    current_year = datetime.now().year
+    
+    # Define the persona and structure for the AI agent
+    prompt = f"""
+    ROLE: Senior Sports Journalist.
+    LANGUAGE: Write EVERYTHING in {language.upper()}. 
+    TARGET: Select the top 4 real football events from {current_year}.
+    
+    STRUCTURE:
+    - [✅ CONFIRMED] or [⚠️ RUMOR] + **Bold Title**
+    - 3 Informative sentences (Action, Context, Impact).
+    - 📢 **Source:** [Website Name]
+    - 🔗 **Link:** [Direct URL]
+    """
+
+    try:
+        completion = groq_client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": f"You are a factual sports bot writing in {language}. Temperature 0.0 for accuracy."},
+                {"role": "user", "content": prompt + f"\n\nDATA:\n{data_pool}"}
+            ],
+            model="llama-3.3-70b-versatile",
+            temperature=0.0
+        )
+        return completion.choices[0].message.content
+    except Exception as e:
+        print(f"Groq Error: {e}")
         return None
 
-# Initialize the Google Sheets Client
-client = get_gspread_client()
-
-def get_data():
-    if client:
-        try:
-            sheet = client.open_by_key(SHEET_ID).sheet1
-            data = sheet.get_all_records()
-            return pd.DataFrame(data)
-        except Exception as e:
-            st.error(f"Error fetching data: {e}")
-    return pd.DataFrame()
-
-def update_data(df):
-    if client:
-        try:
-            sheet = client.open_by_key(SHEET_ID).sheet1
-            sheet.clear()
-            # Update sheet with headers and data
-            sheet.update([df.columns.values.tolist()] + df.values.tolist())
-            return True
-        except Exception as e:
-            st.error(f"Error updating sheet: {e}")
-    return False
-
-# --- 3. UI Styling ---
-st.markdown("""
-    <style>
-    .stApp { background-color: #050505; color: white; }
-    .stForm { background: #0f0f0f !important; padding: 30px !important; border-radius: 15px !important; border: 1px solid #1e1e1e !important; }
-    .stButton>button { background: linear-gradient(90deg, #0062ff, #0047ba); color: white; width: 100%; font-weight: bold; }
-    .report-output { background-color: #0a0a0a; padding: 25px; border-radius: 12px; border: 1px solid #222; color: #d1d1d1; }
-    </style>
-    """, unsafe_allow_html=True)
-
-st.title("Football Intelligence")
-st.write("Professional Scouting Cloud | 2026")
-
-# --- 4. Subscription Form ---
-with st.form("subscription_form"):
-    col1, col2 = st.columns(2)
-    with col1:
-        email = st.text_input("Email Address")
-        interest = st.selectbox("Team/League Interest", ["Real Madrid", "Al Ahly", "Zamalek", "Premier League"])
-    with col2:
-        language = st.selectbox("Preferred Language", ["English", "Arabic"])
-        pref_time = st.selectbox("Delivery Schedule", ["Morning", "Evening", "Instant Only"])
+def run_agent_workflow(topic, receiver_email, interest, language="English"):
+    """
+    Orchestrates the full workflow: Search -> Research -> Write -> Email.
+    """
+    data = get_comprehensive_news(topic, interest)
+    if not data: 
+        print(f"No data found for {topic}")
+        return None
     
-    submit = st.form_submit_button("SYNC & RUN ANALYSIS")
+    report = generate_professional_report(topic, data, language)
+    
+    if report:
+        subject = f"Precision Update: {topic} ({language})"
+        send_news_email(receiver_email, subject, report)
+        return report
+    return None
 
-# --- 5. Application Logic ---
-if submit:
-    if email and "@" in email:
-        df = get_data()
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Check if user already exists
-        if not df.empty and email in df['Email'].values:
-            df.loc[df['Email'] == email, ['Interest', 'Language', 'Preferred_Time']] = [interest, language, pref_time]
-            status_msg = "Account synchronized successfully!"
-        else:
-            # Add new user record
-            new_row = pd.DataFrame([[email, interest, language, pref_time, now]], 
-                                 columns=["Email", "Interest", "Language", "Preferred_Time", "Subscription_Date"])
-            df = pd.concat([df, new_row], ignore_index=True)
-            status_msg = "Welcome! Your scouting profile is created."
-        
-        # Push to Google Sheets
-        if update_data(df):
-            st.success(status_msg)
-            
-            # Execute AI Workflow if Instant is selected
-            if pref_time == "Instant Only":
-                with st.spinner("Agent is analyzing football data..."):
-                    report = run_agent_workflow(interest, email, interest, language)
-                    st.markdown(f"<div class='report-output'>{report}</div>", unsafe_allow_html=True)
-    else:
-        st.error("Please provide a valid email address.")
+# --- NEW: Automated Scheduling Logic ---
+
+def start_scheduler():
+    """
+    Background loop that checks for pending scheduled tasks.
+    """
+    def scheduled_task():
+        print(f"Execution started at: {datetime.now()}")
+        # Example: Triggering a specific report for a test user
+        # In a real scenario, you can pull users/topics from a Database or Google Sheet here
+        # run_agent_workflow("Real Madrid", "user@example.com", "Transfers", "Arabic")
+        pass
+
+    # Schedule the report to run at specific times (24h format)
+    schedule.every().day.at("09:00").do(scheduled_task)
+    schedule.every().day.at("21:00").do(scheduled_task)
+
+    while True:
+        schedule.run_pending()
+        time.sleep(60) # Check for tasks every minute
+
+def launch_background_scheduler():
+    """
+    Starts the scheduler in a separate thread to prevent blocking the Main UI/Process.
+    """
+    scheduler_thread = threading.Thread(target=start_scheduler, daemon=True)
+    scheduler_thread.start()
+    print("✅ Background Scheduler Engine Started!")
+
+# Note: Call launch_background_scheduler() in your app.py to activate it.
